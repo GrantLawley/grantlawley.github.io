@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.3.1">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2022-11-09T09:23:51-05:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">The Lazy Mathematician</title><subtitle></subtitle><author><name>Grant Lawley</name></author><entry><title type="html">Creating a Generalized Additive Model from Scratch</title><link href="http://localhost:4000/2022/11/06/GeneralizedAdditiveModels.html" rel="alternate" type="text/html" title="Creating a Generalized Additive Model from Scratch" /><published>2022-11-06T10:16:44-05:00</published><updated>2022-11-06T10:16:44-05:00</updated><id>http://localhost:4000/2022/11/06/GeneralizedAdditiveModels</id><content type="html" xml:base="http://localhost:4000/2022/11/06/GeneralizedAdditiveModels.html"><![CDATA[<!-- # Creating a Generalized Additive Model From Scratch -->
+
+<p>When building a good statistical model, we all know that there are many options in the statistician’s toolkit.  In my line of work, I need to be able to quickly compute and interpret the results of models, so linear and logistic regression methods are my best friends.  Although these models are easy to interpret, they aren’t as flexible or powerful as other options.  For example, you’ll likely have much better results if you replace your logistic model with an artificial neural network or a random forest.  While these models are powerful, it is often challenging to uncover <em>why</em> they produce the outcomes they do.  This problem is exacerbated if you are working with large model architectures.</p>
+
+<p>Ideally, we want a more powerful model than traditional regression techniques but more interpretable than black box methods like artificial neural networks.  Enter generalized additive models!  Generalized additive models, or GAMs for short, are brought to us by Trevor Hastie and Robert Tibshirani, the two statisticians who also brought us <em>The Elements of Statistical Learning</em>.  Generalized additive models are so powerful because they allow us to see the contribution of each variable in our model to the outcome that we wish to model.  In this article, we will be going over some of the math required to get a working knowledge of generalized additive models.</p>
+
+<p>Recall that the general linear model can be specified as a simple linear combination of an intercept and independent variables.</p>
+
+\[y = \beta_0 + \sum_{i=1}^{n} \beta_ix_i\]
+
+<p>This is easy to compute and easy to interpret!  However, what if the function we wish to model doesn’t follow this linear model?  In fact, what if it didn’t even follow a nice nonlinear model like this?</p>
+
+\[y = \alpha + \sum_{i=1}^{n} \beta_ix_i + \gamma_ix_i^2 + \phi_ix_i^3\]
+
+<p>GAMs solve this problem by not assuming any parametric form of the underlying model.  Instead, they use unspecified, nonparametric smooth functions</p>
+
+\[f_1(X_1), f_2(X_2),\dots, f_{n-1}(X_{n-1}), f_n(X_n)\]
+
+<p>to approximate the function from the data.  Each $f(\cdot)$ is a smooth function determined from the data.  Luckily, there is a way to iteratively compute the values of these functions via the <em>backfitting algorithm</em>.</p>
+
+<h3 id="the-backfitting-algorithm">The Backfitting Algorithm</h3>
+
+<p>Let $S_j(\cdot)$ be a smoothing operator, which in our case will be a natural cubic spline.  If we require that $\sum_i^Nf_j(x_{ij}) = 0 \space \space \forall j$, then the intercept of our functions should then satisfy $\alpha = \text{ave}({y_i}_1^N)$. The backfitting algorithm then proceeds as follows.</p>
+
+<ol>
+  <li>Let $\hat{\alpha} = \frac{1}{N}\sum^{N}_{i=1}y_i$</li>
+  <li>Set $\hat{f}_j = 0 \space\space \forall j$</li>
+  <li>
+    <p>For $j = 1, 2, \dots, p$:</p>
+
+\[\hat{f}_j \leftarrow S_j\bigg[\{y_i - \hat{\alpha} - \sum_{k\neq j} \hat{f}_k(x_{ik})\}_1^N\bigg]\]
+
+\[\hat{f}_j \leftarrow \hat{f}_j - \frac{1}{N}\sum^{N}_{i=1}\hat{f}_j(x_{ij})\]
+  </li>
+  <li>Repeat step 3 until all functions have converged to within some tolerance.</li>
+</ol>
+
+<p>There is a bit to unpack here.  When I first saw the algorithm, it was a tad confusing.  The key to understanding this lies in this line.</p>
+
+\[\hat{f}_j \leftarrow S_j\bigg[\{y_i - \hat{\alpha} - \sum_{k\neq j} \hat{f}_k(x_{ik})\}_1^N\bigg]\]
+
+<p>Notice that the summation index ranges over all of our functions <em>except</em> for the one we are currently trying to estimate, which is $\hat{f_j}$.  What this step is asking is this: If we subtract the contribution of every other feature from each $y_i$, what function $f_j$ explains the remaining values?  In other words, we are simply trying to find the best $f_j$ to approximate the function values once we account for $f_1, f_2,\dots, f_{j-1}, f_{j+1}, \dots, f_n$.</p>
+
+<p>The details of the smoothing operator depend on the type of scatterplot smoothing used, but for this case we will employ a natural cubic spline with knots at each of the unique values $x_i$.</p>
+
+<h3 id="a-short-aside-on-cubic-splines-and-smoothing-splines">A Short Aside on Cubic Splines and Smoothing Splines</h3>
+
+<p>In statistics, cubic splines are third-degree polynomials with knots at $\xi_1, \xi_2, \dots, \xi_k$ of the form</p>
+
+\[f(x) = \sum_{i=0}^3 \beta_ix^i + \sum_{j=0}^k \phi_j \cdot \max(0, x - \xi_j)^3 \quad (\text{equation}\space 1)\]
+
+<p>The terms in the above equation are often called the <em>basis functions</em> or <em>truncated power basis</em>.  Moreover, the terms $\max(0, x - \xi_j)^3$ ensure that the function has continuous first and second derivatives, which provide smoothness to the function.  If we want to estimate the parameters $\beta, \phi$ in the model, we can use the typical least squares approach.  These splines are closely connected to scatterplot smoothers, particularly cubic smoothing splines.</p>
+
+<p>To motivate cubic smoothing splines, imagine that we want to find a function $f(x)$ with continuous first and second derivatives that minimizes the <em>penalized residual sum of squares</em>.</p>
+
+\[\text{PRSS} = \sum_{i=0}^N \big[y_i - f(x_i)\big]^2 + \lambda\int\bigg[\frac{\partial^2 f(t)}{\partial t^2}\bigg]^2dt, \quad \lambda \geq 0 \quad (\text{equation 2})\]
+
+<p>There are two parts here.  The first term on the right-hand side aims to measure the closeness of our function $f(\cdot)$ to the observed data, while the second term aims to control the “wiggliness” of the function, with $\lambda$ being a parameter that we choose as a sort of penalty on said wiggliness.  Without going too much into this, a value of $\lambda = 0$ means that our function can be any function that interpolates the points $y_i$, which will certainly minimize the PRSS since then the term $y_i - f(x_i)$ is equal to zero for all $i$.  On the other hand, a value of $\lambda = \infty$ leads to a linear least squares estimate since no wiggliness will be permitted.</p>
+
+<p>Finding the optimal function $f(\cdot)$ that minimizes the above <em>functional</em> is a problem you could probably solve using variational calculus.  Fortunately for us, <em>the Elements of Statistical Learning</em> shows us that the minimizing function is just a <em>natural</em> cubic spline with knots at each unique $x_i$.</p>
+
+<p>Natural cubic splines can be written exactly as in equation 1, but they have an additional constraint we must consider when finding the coefficients’ values.  This constraint, by definition, is that the function $f(x)$ is linear before the first knot and beyond the last knot.  In other words, we require that</p>
+
+\[\frac{\partial ^2f(x)}{\partial x^2} = 0 \space\space \forall x \leq \xi_1 \space \cup \space \forall x \geq \xi_k\]
+
+<p>These conditions imply certain limitations on our estimation, and <em>The Elements of Statistical Learning</em>  provides a formula for constructing the basis functions for natural cubic splines that ensure these conditions.  However, there is another way to incorporate these constraints into the problem of minimizing equation 2.</p>
+
+<p>We will prove that these boundary constraints imply the following hold in equation 1.  We will use these conditions later when minimizing the value of the smoother $S_j$ in our backfitting algorithm.</p>
+
+\[\begin{matrix}
+   (1) &amp; \beta_2 = 0 \\ &amp;&amp;\\
+   (2) &amp; \beta_3 = 0\\ &amp;&amp; \\ (3) &amp; \sum_{j=0}^k \phi_j = 0 \\ &amp;&amp;\\ (4) &amp; \sum_{j=0}^k\phi_j\xi_j = 0             
+\end{matrix}\]
+
+<p><strong>Proof</strong></p>
+
+<p>To prove the $(1) \text{ and } (2)$, we first note that for $x &lt;= \xi_1$, equation 1 reduces to</p>
+
+\[f(x) = \sum_{i=0}^3 \beta_ix^i = \beta_0 + \beta_1x + \beta_2x^2 + \beta_3x^3\]
+
+<p>since every term in the second summation evaluates to $0$.  Taking the second derivative and setting it to zero requires that</p>
+
+\[\frac{\partial ^2f(x)}{\partial x^2} = 2\beta_2 + 6\beta_3x\]
+
+\[2\beta_2 + 6\beta_3x = 0\]
+
+<p>This can only hold for all $x \leq \xi_1$ if $\beta_2 = \beta_3 = 0$.</p>
+
+<p>To prove $(3)\text{ and }(4)$, we note that equation 1 reduces to</p>
+
+\[f(x) = \sum_{i=0}^3 \beta_ix^i + \sum_{j=0}^k \phi_j \cdot (x - \xi_j)^3\]
+
+<p>Taking second derivatives gives</p>
+
+\[\frac{\partial ^2f(x)}{\partial x^2} = 2\beta_2 + 6\beta_3x + 6\sum_{j=0}^k \phi_j(x - \xi_j)\]
+
+<p>From the first part of the proof, we already know that $\beta_2 = \beta_3 = 0$, so this further reduces to</p>
+
+\[\frac{\partial ^2f(x)}{\partial x^2} = 6\sum_{j=0}^k \phi_i(x - \xi_j)\]
+
+<p>So that for the boundary conditions to hold, we must have</p>
+
+\[\sum_{j=0}^k \phi_jx = \sum_{j=0}^k \phi_j\xi_j\]
+
+<p>which again can only be true for all $x \geq \xi_k$ if $\sum_{j=0}^k \phi_j = \sum_{j=0}^k \phi_j\xi_j = 0$.</p>
+
+<h3 id="coding-the-generalized-additive-model">Coding the Generalized Additive Model</h3>
+
+<p>To get started on coding this model, we want to make sure that we have a few libraries installed, namely <a href="https://pandas.pydata.org/">Pandas</a>, <a href="https://numpy.org/">NumPy</a>, and <a href="https://scipy.org/">SciPy</a>.  For the data, I have decided to use a <a href="https://www.kaggle.com/">Kaggle</a> dataset called <em>House Prices - Advanced Regression Techniques</em>.  In this dataset, we have features about homes in Ames, Iowa, and the challenge is to try to predict the sale price.  It’s important to note here that I will just be treating all of the variables in the code as continuous since I am not trying to create a full-fledged Python library but instead get a feel for the basics of how GAMs are estimated.</p>
+
+<p>First, we import the modules we need and load the data.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="n">pd</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="n">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">scipy</span>
+<span class="kn">import</span> <span class="nn">math</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s">"train.csv"</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>This particular dataset doesn’t have a substantial amount of continuous variables.  Let’s create some important variables when determining a house’s price.  We are going to drop entries where there are zero full bathrooms or zero full bedrooms to make some features possible to compute.</p>
+
+<p>I don’t know about you, but there are some essential things I would consider when buying a home.  For example, I care about the average size of each room and the number of bathrooms to bedrooms, among other things.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s">"FullBath"</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span> <span class="c1"># Needed so no divide by zero error
+</span><span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s">"BedroomAbvGr"</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">]</span> <span class="c1"># Needed so no divide by zero error
+</span>
+<span class="n">df</span><span class="p">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s">"HouseAge"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"YrSold"</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="s">"YearBuilt"</span><span class="p">]</span>
+<span class="n">df</span><span class="p">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s">"SquareFootagePerRoom"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"GrLivArea"</span><span class="p">]</span> <span class="o">/</span> <span class="n">df</span><span class="p">[</span><span class="s">"TotRmsAbvGrd"</span><span class="p">]</span>
+<span class="n">df</span><span class="p">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s">"BedroomToBathroomRatio"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"BedroomAbvGr"</span><span class="p">]</span> <span class="o">/</span> <span class="n">df</span><span class="p">[</span><span class="s">"FullBath"</span><span class="p">]</span>
+<span class="n">df</span><span class="p">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s">"NumberOfNonBedrooms"</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"TotRmsAbvGrd"</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="s">"BedroomAbvGr"</span><span class="p">]</span>
+<span class="n">df</span><span class="p">.</span><span class="n">loc</span><span class="p">[:,</span> <span class="s">"LogYardToLotRatio"</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="mf">1.</span> <span class="o">+</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s">"LotArea"</span><span class="p">]</span> <span class="o">-</span> <span class="n">df</span><span class="p">[</span><span class="s">"GrLivArea"</span><span class="p">])</span> <span class="o">/</span> <span class="n">df</span><span class="p">[</span><span class="s">"LotArea"</span><span class="p">])</span>
+</code></pre></div></div>
+
+<p>So now we have the following features that we want to use.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">features</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s">"NumberOfNonBedrooms"</span><span class="p">,</span> <span class="c1"># Number of rooms that are not bedrooms
+</span>    <span class="s">"GrLivArea"</span><span class="p">,</span> <span class="c1"># Area of the above-ground living area in square feet
+</span>    <span class="s">"TotRmsAbvGrd"</span><span class="p">,</span> <span class="c1"># Total number of rooms above ground excluding bathrooms
+</span>    <span class="s">"OverallCond"</span><span class="p">,</span> <span class="c1"># Overall condition of the house on a scale of 1 - 10
+</span>    <span class="s">"OverallQual"</span><span class="p">,</span> <span class="c1"># Overall quality of the house on a scale of 1 - 10
+</span>    <span class="s">"HouseAge"</span><span class="p">,</span> <span class="c1"># Age of the house in years
+</span>    <span class="s">"SquareFootagePerRoom"</span><span class="p">,</span> <span class="c1"># Average area of each room in square feet
+</span>    <span class="s">"BedroomToBathroomRatio"</span><span class="p">,</span> <span class="c1"># Number or bedrooms divided by number of bathrooms
+</span>    <span class="s">"LogYardToLotRatio"</span><span class="p">,</span> <span class="c1"># Measure of proportionality between yard and total lot area
+</span>    <span class="s">"GarageArea"</span> <span class="c1"># Area of the garage
+</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p>We can plot <code class="language-plaintext highlighter-rouge">SalePrice</code> for each house against the features to get a feel for how they generally affect the housing price.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">plt</span><span class="p">.</span><span class="n">style</span><span class="p">.</span><span class="n">use</span><span class="p">(</span><span class="s">"seaborn"</span><span class="p">)</span>
+<span class="n">num_columns</span> <span class="o">=</span> <span class="mi">4</span>
+<span class="n">num_rows</span> <span class="o">=</span> <span class="n">math</span><span class="p">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">)</span> <span class="o">/</span> <span class="mi">4</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="p">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">num_rows</span><span class="p">,</span> <span class="n">num_columns</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_dpi</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_constrained_layout</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_constrained_layout_pads</span><span class="p">(</span><span class="n">hspace</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_rows</span> <span class="o">*</span> <span class="n">num_columns</span><span class="p">):</span>
+    <span class="n">row</span> <span class="o">=</span> <span class="n">index</span> <span class="o">//</span> <span class="n">num_columns</span>
+    <span class="n">col</span> <span class="o">=</span> <span class="n">index</span> <span class="o">%</span> <span class="n">num_columns</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">row</span> <span class="o">*</span> <span class="n">num_columns</span> <span class="o">+</span> <span class="n">col</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span>
+
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">scatter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">facecolors</span><span class="o">=</span><span class="s">"none"</span><span class="p">,</span> <span class="n">edgecolors</span><span class="o">=</span><span class="s">"b"</span><span class="p">)</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="nb">set</span><span class="p">(</span><span class="n">xlabel</span><span class="o">=</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">col</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="nb">set</span><span class="p">(</span><span class="n">ylabel</span><span class="o">=</span><span class="s">"SalePrice"</span><span class="p">)</span>
+
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">xaxis</span><span class="p">.</span><span class="n">label</span><span class="p">.</span><span class="n">set_size</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">yaxis</span><span class="p">.</span><span class="n">label</span><span class="p">.</span><span class="n">set_size</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">set_axis_off</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p><img src="/assets/images/plots.jpeg" alt="plots.jpeg" /></p>
+
+<p>We can already see a few relationships here.  For instance,  <code class="language-plaintext highlighter-rouge">OverallQual</code> seems to have a positive, exponential impact on the housing price while <code class="language-plaintext highlighter-rouge">HouseAge</code> seems to have an exponentially decaying relationship to the housing price.</p>
+
+<p>Now let’s get everything we need to start our backfitting algorithm.  First and foremost (and because I know this only after playing with the code), we need to standardize our data by subtracting the mean of each feature and dividing by its standard deviation.  The short answer to why we are doing this is that the backfitting algorithm does not converge with the current data as is.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># We need to keep a copy of the original dataframe for later
+</span><span class="n">copy_of_original</span> <span class="o">=</span> <span class="n">copy</span><span class="p">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+<span class="n">mean</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">features</span> <span class="o">+</span> <span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]].</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">stdev</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">features</span> <span class="o">+</span> <span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]].</span><span class="n">std</span><span class="p">()</span>
+<span class="n">df</span> <span class="o">=</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">features</span> <span class="o">+</span> <span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]]</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">stdev</span>
+</code></pre></div></div>
+
+<p>Next, we need a few functions to construct our knots, truncated power basis, and second derivative basis.  To simplify the calculations, we will use only 20 knots plus one additional knot for every 50 unique values if there are more than 20 unique values in the feature.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">spline_knots</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+    <span class="n">unique_x</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">unique</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_x</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">20</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">unique_x</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="p">.</span><span class="n">linspace</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">unique_x</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">unique_x</span><span class="p">),</span> <span class="mi">20</span> <span class="o">+</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_x</span><span class="p">)</span> <span class="o">-</span> <span class="mi">20</span><span class="p">)</span> <span class="o">//</span> <span class="mi">50</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">truncated_power_basis</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">knots</span><span class="p">):</span>
+    <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">knots</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">ones</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">values</span><span class="p">):</span>
+        <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
+        <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span><span class="o">**</span><span class="mi">2</span>
+        <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span><span class="o">**</span><span class="mi">3</span>
+
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">knots</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+            <span class="n">X</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">val</span> <span class="o">-</span> <span class="n">k</span><span class="p">)</span> <span class="o">**</span> <span class="mi">3</span>
+
+    <span class="k">return</span> <span class="n">X</span>
+
+<span class="k">def</span> <span class="nf">f_double_prime_basis</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">knots</span><span class="p">):</span>
+    <span class="n">lb</span><span class="p">,</span> <span class="n">ub</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">values</span><span class="p">),</span> <span class="nb">max</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+    <span class="n">sample_points</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lb</span><span class="p">,</span> <span class="n">ub</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+
+    <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">sample_points</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">knots</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="n">X_double_prime</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sample_points</span><span class="p">):</span>
+        <span class="n">X_double_prime</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="mi">2</span>
+        <span class="n">X_double_prime</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">3</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">val</span>
+
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">knots</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">4</span><span class="p">):</span>
+            <span class="n">X_double_prime</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="mi">6</span> <span class="o">*</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">val</span> <span class="o">-</span> <span class="n">k</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">X_double_prime</span><span class="p">,</span> <span class="n">sample_points</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>For estimation, our knots, basis functions, and second derivatives of the basis functions will not change, so all we have to do is create them once using the above functions.  Let’s also create two lists called <code class="language-plaintext highlighter-rouge">beta_old</code> and <code class="language-plaintext highlighter-rouge">beta_new</code> to hold our spline coefficients’ current and previous estimates.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">knots</span> <span class="o">=</span> <span class="p">[</span><span class="n">spline_knots</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">feat</span><span class="p">])</span> <span class="k">for</span> <span class="n">feat</span> <span class="ow">in</span> <span class="n">features</span><span class="p">]</span>
+<span class="n">basis</span> <span class="o">=</span> <span class="p">[</span><span class="n">truncated_power_basis</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">feat</span><span class="p">],</span> <span class="n">knot</span><span class="p">)</span> <span class="k">for</span> <span class="n">feat</span><span class="p">,</span> <span class="n">knot</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">knots</span><span class="p">)]</span>
+<span class="n">derivative_basis</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">f_double_prime_basis</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">feat</span><span class="p">],</span> <span class="n">knot</span><span class="p">)</span> <span class="k">for</span> <span class="n">feat</span><span class="p">,</span> <span class="n">knot</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">knots</span><span class="p">)</span>
+<span class="p">]</span>
+<span class="n">beta_new</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="p">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">knot</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="p">)</span> <span class="k">for</span> <span class="n">knot</span> <span class="ow">in</span> <span class="n">knots</span><span class="p">]</span>
+<span class="n">beta_old</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="p">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">knot</span><span class="p">)</span> <span class="o">+</span> <span class="mi">4</span><span class="p">)</span> <span class="k">for</span> <span class="n">knot</span> <span class="ow">in</span> <span class="n">knots</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p>We will use SciPy to minimize the PRSS above, subject to our constraints.  To do that, we need a function that can be evaluated by the optimization method.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">function</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">integrand</span><span class="p">,</span> <span class="n">lam</span><span class="p">):</span>
+    <span class="n">squared_residuals</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">square</span><span class="p">(</span><span class="n">target</span> <span class="o">-</span> <span class="n">base</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+    <span class="n">sum_of_squared_residuals</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="n">squared_residuals</span><span class="p">)</span>
+    
+    <span class="n">f_double_prime_x_squared</span><span class="p">,</span> <span class="n">x_points</span><span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">square</span><span class="p">(</span><span class="n">integrand</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">dot</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span> <span class="n">integrand</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">integral</span> <span class="o">=</span> <span class="n">scipy</span><span class="p">.</span><span class="n">integrate</span><span class="p">.</span><span class="n">simpson</span><span class="p">(</span><span class="n">f_double_prime_x_squared</span><span class="p">,</span> <span class="n">x_points</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">sum_of_squared_residuals</span> <span class="o">+</span> <span class="n">lam</span> <span class="o">*</span> <span class="n">integral</span>
+</code></pre></div></div>
+
+<p>Now we are ready to get to the core of the algorithm.  I will rewrite it below so that it’s easy to compare to the code.  Remember that we have already done step 2 by setting the <code class="language-plaintext highlighter-rouge">beta_new</code> to zero for every function.  We will use a value of $\lambda = 0.75$ to minimize the PRSS.</p>
+
+<ol>
+  <li>Let $\hat{\alpha} = \frac{1}{N}\sum^{N}_{i=1}y_i$</li>
+  <li>Set $\hat{f}_j = 0 \space\space \forall j$</li>
+  <li>
+    <p>For $j = 1, 2, \dots, p$:</p>
+
+\[\hat{f}_j \leftarrow S_j\bigg[\{y_i - \hat{\alpha} - \sum_{k\neq j} \hat{f}_k(x_{ik})\}_1^N\bigg]\]
+
+\[\hat{f}_j \leftarrow \hat{f}_j - \frac{1}{N}\sum^{N}_{i=1}\hat{f}_j(x_{ij})\]
+  </li>
+  <li>Repeat step 3 until all functions have converged to within some tolerance.</li>
+</ol>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Set the vale of lambda and the convergence tolerance
+</span><span class="n">lam</span> <span class="o">=</span> <span class="mf">0.75</span>
+<span class="n">tol</span> <span class="o">=</span> <span class="mf">1e-4</span>
+<span class="n">max_iter</span> <span class="o">=</span> <span class="mi">100</span>
+
+<span class="c1"># We normalized all of our data, so alpha should be zero here anyways
+</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">].</span><span class="n">mean</span><span class="p">()</span>
+<span class="n">y_minus_alpha</span> <span class="o">=</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">).</span><span class="n">values</span>
+<span class="n">current_iter</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">while</span> <span class="n">current_iter</span> <span class="o">&lt;</span> <span class="n">max_iter</span><span class="p">:</span>
+
+    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">feature1</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+
+        <span class="n">sum_of_other_f_k</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">feature2</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">j</span> <span class="o">!=</span> <span class="n">k</span><span class="p">:</span>
+                <span class="n">sum_of_other_f_k</span> <span class="o">+=</span> <span class="n">basis</span><span class="p">[</span><span class="n">k</span><span class="p">].</span><span class="n">dot</span><span class="p">(</span><span class="n">beta_new</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+
+        <span class="c1"># Set the constraints of the natural spline for the problem and the bounds
+</span>        <span class="c1"># on b_2 and b_3.
+</span>        <span class="n">constr</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"eq"</span><span class="p">,</span> <span class="s">"fun"</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">4</span><span class="p">:])},</span>
+            <span class="p">{</span><span class="s">"type"</span><span class="p">:</span> <span class="s">"eq"</span><span class="p">,</span> <span class="s">"fun"</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">4</span><span class="p">:].</span><span class="n">dot</span><span class="p">(</span><span class="n">knots</span><span class="p">[</span><span class="n">j</span><span class="p">])},</span>
+        <span class="p">)</span>
+        <span class="n">bnds</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">and</span> <span class="n">i</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">)</span> <span class="k">else</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">beta_new</span><span class="p">[</span><span class="n">j</span><span class="p">]))</span>
+        <span class="p">]</span>
+
+        <span class="n">target</span> <span class="o">=</span> <span class="n">y_minus_alpha</span> <span class="o">-</span> <span class="n">sum_of_other_f_k</span>
+
+        <span class="c1"># Start the optimization problem.  When it finishes,
+</span>        <span class="c1"># the result is stored in an attribute called x.  This
+</span>        <span class="c1"># is the vector of betas.
+</span>        <span class="n">problem</span> <span class="o">=</span> <span class="n">scipy</span><span class="p">.</span><span class="n">optimize</span><span class="p">.</span><span class="n">minimize</span><span class="p">(</span>
+            <span class="n">function</span><span class="p">,</span>
+            <span class="n">beta_new</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+            <span class="n">constraints</span><span class="o">=</span><span class="n">constr</span><span class="p">,</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="n">bnds</span><span class="p">,</span>
+            <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">target</span><span class="p">,</span> <span class="n">basis</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">derivative_basis</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">lam</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># subtract mean of the f_j from b_0
+</span>        <span class="n">problem</span><span class="p">.</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-=</span> <span class="n">np</span><span class="p">.</span><span class="n">mean</span><span class="p">(</span><span class="n">basis</span><span class="p">[</span><span class="n">j</span><span class="p">].</span><span class="n">dot</span><span class="p">(</span><span class="n">problem</span><span class="p">.</span><span class="n">x</span><span class="p">))</span>
+
+        <span class="c1"># Update betas
+</span>        <span class="n">beta_old</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">beta_new</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+        <span class="n">beta_new</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">problem</span><span class="p">.</span><span class="n">x</span>
+
+    <span class="c1"># Check for convergence
+</span>    <span class="n">converged</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="p">.</span><span class="n">linalg</span><span class="p">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x_1</span> <span class="o">-</span> <span class="n">x_0</span><span class="p">)</span> <span class="k">for</span> <span class="n">x_0</span><span class="p">,</span> <span class="n">x_1</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">beta_old</span><span class="p">,</span> <span class="n">beta_new</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="nb">max</span><span class="p">(</span><span class="n">converged</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">tol</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span><span class="s">"</span><span class="se">\n</span><span class="s">Backifitting algorithm has converged!</span><span class="se">\n</span><span class="s">"</span><span class="p">)</span>
+        <span class="k">break</span>
+
+    <span class="n">current_iter</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">current_iter</span> <span class="o">==</span> <span class="n">max_iter</span><span class="p">:</span>
+        <span class="k">print</span><span class="p">(</span>
+            <span class="s">"</span><span class="se">\n</span><span class="s">Backfitting algorithm failed to converge in {} iterations! Exiting!</span><span class="se">\n</span><span class="s">"</span><span class="p">.</span><span class="nb">format</span><span class="p">(</span>
+                <span class="n">max_iter</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+</code></pre></div></div>
+
+<p>The above code will take a few minutes to run, but it will terminate successfully.  Now we can plot the output of our predictions.  The blue dots show the actual values of the housing prices, while the red dots show our predictions.  It’s essential to keep in mind that because we scaled the data before the model estimation, we need to scale it back to its original form.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Calculate the predictions for our training set.  We need to
+# scale the data back to the original form by multiplying by
+# the standard deviation and adding the mean to the entire array once.
+</span><span class="n">prediction</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">))</span> <span class="o">+</span> <span class="n">mean</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span> <span class="o">+</span> <span class="n">alpha</span>
+<span class="k">for</span> <span class="n">feat</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">base</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">beta_new</span><span class="p">,</span> <span class="n">basis</span><span class="p">):</span>
+    <span class="n">prediction</span> <span class="o">+=</span> <span class="n">stdev</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span> <span class="o">*</span> <span class="n">base</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="p">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">num_rows</span><span class="p">,</span> <span class="n">num_columns</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_dpi</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_constrained_layout</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_constrained_layout_pads</span><span class="p">(</span><span class="n">hspace</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_rows</span> <span class="o">*</span> <span class="n">num_columns</span><span class="p">):</span>
+    <span class="n">row</span> <span class="o">=</span> <span class="n">index</span> <span class="o">//</span> <span class="n">num_columns</span>
+    <span class="n">col</span> <span class="o">=</span> <span class="n">index</span> <span class="o">%</span> <span class="n">num_columns</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">row</span> <span class="o">*</span> <span class="n">num_columns</span> <span class="o">+</span> <span class="n">col</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">copy_of_original</span><span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">copy_of_original</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span>
+
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">scatter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">facecolors</span><span class="o">=</span><span class="s">"none"</span><span class="p">,</span> <span class="n">edgecolors</span><span class="o">=</span><span class="s">"b"</span><span class="p">)</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">scatter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">prediction</span><span class="p">,</span> <span class="n">facecolors</span><span class="o">=</span><span class="s">"none"</span><span class="p">,</span> <span class="n">edgecolors</span><span class="o">=</span><span class="s">"r"</span><span class="p">)</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="nb">set</span><span class="p">(</span><span class="n">xlabel</span><span class="o">=</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">col</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="nb">set</span><span class="p">(</span><span class="n">ylabel</span><span class="o">=</span><span class="s">"SalePrice"</span><span class="p">)</span>
+
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">xaxis</span><span class="p">.</span><span class="n">label</span><span class="p">.</span><span class="n">set_size</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">yaxis</span><span class="p">.</span><span class="n">label</span><span class="p">.</span><span class="n">set_size</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">set_axis_off</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p><img src="/assets/images/predictions_0.75.jpeg" alt="predictions_0.75.jpeg" /></p>
+
+<p>We can also view the contributions of each feature.  Because we standardized the data before estimation, there is really no way to determine how much of the <code class="language-plaintext highlighter-rouge">mean["SalePrice"]</code> each feature contributes to the final price.  However, we can visualize the contribution to or away from <code class="language-plaintext highlighter-rouge">mean["SalePrice"]</code>.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="p">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">num_rows</span><span class="p">,</span> <span class="n">num_columns</span><span class="p">,</span> <span class="n">sharey</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+
+<span class="n">fig</span><span class="p">.</span><span class="n">set_size_inches</span><span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">9</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_dpi</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_constrained_layout</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">set_constrained_layout_pads</span><span class="p">(</span><span class="n">hspace</span><span class="o">=</span><span class="mf">0.05</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">.</span><span class="n">supylabel</span><span class="p">(</span><span class="s">'Contribution to Mean of SalePrice'</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_rows</span> <span class="o">*</span> <span class="n">num_columns</span><span class="p">):</span>
+    <span class="n">row</span> <span class="o">=</span> <span class="n">index</span> <span class="o">//</span> <span class="n">num_columns</span>
+    <span class="n">col</span> <span class="o">=</span> <span class="n">index</span> <span class="o">%</span> <span class="n">num_columns</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">row</span> <span class="o">*</span> <span class="n">num_columns</span> <span class="o">+</span> <span class="n">col</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">linspace</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">]]),</span> <span class="nb">max</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">]]),</span> <span class="mi">200</span><span class="p">)</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="n">truncated_power_basis</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">knots</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">base</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="n">beta_new</span><span class="p">[</span><span class="n">index</span><span class="p">])</span> <span class="o">*</span> <span class="n">stdev</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span> <span class="o">+</span> <span class="n">alpha</span>
+
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">plot</span><span class="p">(</span>
+            <span class="n">x</span> <span class="o">*</span> <span class="n">stdev</span><span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span> <span class="o">+</span> <span class="n">mean</span><span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">]],</span> <span class="n">y</span><span class="p">,</span> <span class="n">c</span><span class="o">=</span><span class="s">"black"</span>
+        <span class="p">)</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="nb">set</span><span class="p">(</span><span class="n">xlabel</span><span class="o">=</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">xaxis</span><span class="p">.</span><span class="n">label</span><span class="p">.</span><span class="n">set_size</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">set_axis_off</span><span class="p">()</span>
+</code></pre></div></div>
+
+<p><img src="/assets/images/contributions_0.75.jpeg" alt="contributions_0.75.jpeg" /></p>
+
+<h3 id="why-we-had-to-scale-our-data">Why We Had to Scale Our Data</h3>
+
+<p>While writing the code for this article, I realized that the backifitting algorithm was not converging, which was a big problem.  Readers who have taken a numerical analysis course may draw some parallels between the backfitting algorithm and the Gauss-Seidel method for solving a system of equations.  It turns out (and this is even an exercise in <em>The Elements of Statistical Learning</em>) that the backfitting algorithm can be formatted as the Gauss-Seidel method.</p>
+
+<p>To quickly illustrate the method and its conditions for convergence, let us take an $n \times n$ matrix A.  We want to solve the equation $Ax = b$ iteratively.  The Gauss-Seidel algorithm poceeds by splitting $A$  into the following three $n \times n$ matrices.</p>
+
+\[\begin{align*}
+    A = &amp; \begin{bmatrix} 
+    a_{1,1} &amp; a_{1,2} &amp; \dots &amp; a_{1, n-1} &amp; a_{1, n} \\
+    a_{2, 1} &amp; a_{2, 2} &amp; \dots &amp; a_{2, n-1} &amp; a_{2, n}\\
+    \vdots &amp; &amp; \ddots &amp; &amp; \\
+    a_{n-1, 1} &amp; a_{n-1, 2} &amp; \dots &amp; a_{n-1, n-1} &amp; a_{n-1, n}\\
+    a_{n, 1} &amp; a_{n, 2} &amp; \dots &amp; a_{n, n-1} &amp; a_{n, n}
+    \end{bmatrix}=\begin{bmatrix} 
+    a_{1,1} &amp; 0 &amp; \dots &amp; 0 &amp; 0 \\
+    0 &amp; a_{2, 2} &amp; \dots &amp; 0 &amp; 0\\
+    \vdots &amp; &amp; \ddots &amp; &amp; \\
+    0 &amp; 0 &amp; \dots &amp; a_{n-1, n-1} &amp; 0\\
+    0 &amp; 0 &amp; \dots &amp; 0 &amp; a_{n, n}
+    \end{bmatrix}\\
+    &amp;\\
+    -&amp;\begin{bmatrix} 
+    0 &amp; -a_{1,2} &amp; \dots &amp; -a_{1, n-1} &amp; -a_{1, n} \\
+    0 &amp; 0 &amp; \dots &amp; -a_{2, n-1} &amp; -a_{2, n}\\
+    \vdots &amp; &amp; \ddots &amp; &amp; \\
+    0 &amp; 0 &amp; \dots &amp; 0 &amp; -a_{n-1, n}\\
+    0 &amp; 0 &amp; \dots &amp; 0 &amp; 0
+    \end{bmatrix}-\begin{bmatrix} 
+    0 &amp; 0 &amp; \dots &amp; 0 &amp; 0 \\
+    -a_{2, 1} &amp; 0 &amp; \dots &amp; &amp; 0\\
+    \vdots &amp; &amp; \ddots &amp; &amp; \\
+    -a_{n-1, 1} &amp; -a_{n-1, 2} &amp; \dots &amp; 0 &amp; 0\\
+    -a_{n, 1} &amp; -a_{n, 2} &amp; \dots &amp; -a_{n, n-1} &amp; 0
+    \end{bmatrix} \end{align*}\]
+
+<p>So we can represent $A$ as the sum of the diagonal matrix $D$, the lower triangular matrix $L$, and the upper triangular matrix $U$.  Distributing $x$ over $A$ yields</p>
+
+\[\begin{align*}Dx - (L + U)x = b\\Dx = (L + U) + b\\x = D^{-1}(L + U)x + D^{-1}b\end{align*}\]
+
+<p>We make one replacement to arrive at the final method.</p>
+
+\[x_{k+1} = D^{-1}(L + U)x_k + D^{-1}b\]
+
+<p>It turns out that this iterative method is only guaranteed to converge if the spectral radius, the maximum magnitude of the eigenvalues, of $D^{-1}(L + U)$ is less than 1.</p>
+
+<p>If we use the natural cubic spline basis proposed in <em>The Elements of Statistical Learning</em>, it’s much easier to show the connection between the backfitting algorithm and the Gauss-Seidel method.  Because I used numerical optimization in this article instead of finding the parameters based on a closed-form solution, I won’t go into the details of showing this.</p>
+
+<h3 id="conclusion">Conclusion</h3>
+
+<p>In this article, we saw how to use natural cubic smoothing splines to minimize a penalized residual sum of squares function via nonlinear programming.  Although <em>The Elements of Statistical Learning</em> provides a formula for construction spline terms that satisfy natural cubic spline conditions, we used numerical methods from SciPy to compute the parameters in the spline.</p>
+
+<p>The good news is that we do not have to implement this algorithm from scratch whenever we want to build a generalized additive model.  The Python package <a href="https://pygam.readthedocs.io/en/latest/index.html">PyGam</a>, written by Daniel Servén, offers a <em>lot</em> of flexibility and functionality for computing GAMs quickly and efficiently.  The package can accommodate different types of link functions and makes determining feature contribution incredibly easy for both continuous and discrete features!</p>
+
+<h3 id="references">References</h3>
+
+<ol>
+  <li>Hastie, T., Friedman, J., &amp; Tisbshirani, R. (2017). <em>The elements of Statistical Learning: Data Mining, Inference, and prediction</em>.  Springer.</li>
+  <li>Burden, Richard L., et al. “Chapter 7.” <em>Numerical Analysis</em>, 10th ed., Cengage Learning, Australia, 2016, pp. 456–463.</li>
+  <li>Servén D., Brummitt C. (2018). pyGAM: Generalized Additive Models in Python.  Zenodo. <a href="http://doi.org/10.5281/zenodo.1208723">DOI: 10.5281/zenodo.1208723</a></li>
+</ol>]]></content><author><name>Grant Lawley</name></author><summary type="html"><![CDATA[]]></summary></entry></feed>
