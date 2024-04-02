@@ -631,7 +631,7 @@ When you run this code, you should get the following graph or something very sim
 
 ![error.png](/assets/images/error.png)
 
-The full code for the neural network implementation can be found in this repository. 
+The full code for the neural network implementation can be found in this [repository](code/NeuralNetworkfromScratch/NeuralNetwork.ipynb). 
 
 ### Conclusion
 
