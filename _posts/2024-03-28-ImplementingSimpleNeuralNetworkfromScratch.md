@@ -107,7 +107,7 @@ $$
 \frac{\partial L}{\partial w^3_{1,1}} = \frac{\partial L}{\partial a^4_1}\frac{\partial a^4_1}{\partial z^4_1}\frac{\partial z^4_1}{\partial w^3_{1,1}} + \frac{\partial L}{\partial a^4_2}\frac{\partial a^4_2}{\partial z^4_2}\frac{\partial z^4_2}{\partial w^3_{1,1}} = \frac{\partial L}{\partial a^4_1}\frac{\partial a^4_1}{\partial z^4_1}\frac{\partial z^4_1}{\partial w^3_{1,1}}
 $$
 
-where the last equality follows because $\partial z^4_2/\partial w^3_{1,1} =0$ since $w^3_{1,1}$ does not connect to the second node in the output layer. This result was obtained by starting at the output node and tracing a path back to our weight, taking partial derivatives using the chain rule along the way. So for our output layer we have the following matrix of partial derivatives
+where the last equality follows because $$\partial z^4_2/\partial w^3_{1,1} =0$$ since $$w^3_{1,1}$$ does not connect to the second node in the output layer. This result was obtained by starting at the output node and tracing a path back to our weight, taking partial derivatives using the chain rule along the way. So for our output layer we have the following matrix of partial derivatives
 
 $$
 \mathbf{\partial W}^3 = \begin{bmatrix}
