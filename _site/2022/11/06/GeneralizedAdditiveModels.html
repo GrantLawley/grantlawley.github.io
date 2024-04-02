@@ -2,9 +2,10 @@
 <html lang="en"><head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="keywords" content="The Lazy Mathematician, blog"><!-- Begin Jekyll SEO tag v2.8.0 -->
 <title>Creating a Generalized Additive Model from Scratch | The Lazy Mathematician</title>
-<meta name="generator" content="Jekyll v4.3.1" />
+<meta name="generator" content="Jekyll v3.9.5" />
 <meta property="og:title" content="Creating a Generalized Additive Model from Scratch" />
 <meta name="author" content="Grant Lawley" />
 <meta property="og:locale" content="en_US" />
@@ -231,7 +232,7 @@
 
     <span class="k">if</span> <span class="p">(</span><span class="n">row</span> <span class="o">*</span> <span class="n">num_columns</span> <span class="o">+</span> <span class="n">col</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">features</span><span class="p">):</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">]]</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s">"SalePrice"</span><span class="p">]</span><span class="err">!</span><span class="p">[</span><span class="n">Alt</span> <span class="n">text</span><span class="p">](</span><span class="n">download</span><span class="p">.</span><span class="n">png</span><span class="p">)</span>
 
         <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="n">scatter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">facecolors</span><span class="o">=</span><span class="s">"none"</span><span class="p">,</span> <span class="n">edgecolors</span><span class="o">=</span><span class="s">"b"</span><span class="p">)</span>
         <span class="n">axes</span><span class="p">[</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">].</span><span class="nb">set</span><span class="p">(</span><span class="n">xlabel</span><span class="o">=</span><span class="n">features</span><span class="p">[</span><span class="n">index</span><span class="p">])</span>

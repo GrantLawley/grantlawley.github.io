@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="keywords" content="The Lazy Mathematician, blog"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Implementing a Simple Neural Network from Scratch | The Lazy Mathematician</title>
+<meta name="generator" content="Jekyll v3.9.5" />
+<meta property="og:title" content="Implementing a Simple Neural Network from Scratch" />
+<meta name="author" content="Grant Lawley" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Artificial intelligence pervades our daily lives, from ChatGPT to mobile phone handwriting recognition. Even without delving into the mathematical intricacies, frameworks like PyTorch and TensorFlow simplify neural network implementation. Yet, understanding the mechanics behind these networks enhances our grasp of such frameworks. In this post, we’ll construct a basic feed-forward neural network to classify handwritten digits from the MNIST dataset, a repository of images spanning numbers 0 to 9. Note: familiarity with calculus and matrix multiplication is assumed. Let’s dive in." />
+<meta property="og:description" content="Artificial intelligence pervades our daily lives, from ChatGPT to mobile phone handwriting recognition. Even without delving into the mathematical intricacies, frameworks like PyTorch and TensorFlow simplify neural network implementation. Yet, understanding the mechanics behind these networks enhances our grasp of such frameworks. In this post, we’ll construct a basic feed-forward neural network to classify handwritten digits from the MNIST dataset, a repository of images spanning numbers 0 to 9. Note: familiarity with calculus and matrix multiplication is assumed. Let’s dive in." />
+<link rel="canonical" href="http://localhost:4000/2024/03/28/ImplementingSimpleNeuralNetworkfromScratch.html" />
+<meta property="og:url" content="http://localhost:4000/2024/03/28/ImplementingSimpleNeuralNetworkfromScratch.html" />
+<meta property="og:site_name" content="The Lazy Mathematician" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2024-03-28T00:00:00-04:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Implementing a Simple Neural Network from Scratch" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Grant Lawley"},"dateModified":"2024-03-28T00:00:00-04:00","datePublished":"2024-03-28T00:00:00-04:00","description":"Artificial intelligence pervades our daily lives, from ChatGPT to mobile phone handwriting recognition. Even without delving into the mathematical intricacies, frameworks like PyTorch and TensorFlow simplify neural network implementation. Yet, understanding the mechanics behind these networks enhances our grasp of such frameworks. In this post, we’ll construct a basic feed-forward neural network to classify handwritten digits from the MNIST dataset, a repository of images spanning numbers 0 to 9. Note: familiarity with calculus and matrix multiplication is assumed. Let’s dive in.","headline":"Implementing a Simple Neural Network from Scratch","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2024/03/28/ImplementingSimpleNeuralNetworkfromScratch.html"},"url":"http://localhost:4000/2024/03/28/ImplementingSimpleNeuralNetworkfromScratch.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="The Lazy Mathematician" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">The Lazy Mathematician</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    },
+    svg: {
+      fontCache: 'global'
+    }
+  };
+  </script>
+  <script type="text/javascript" id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+  </script>
+
+<article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Implementing a Simple Neural Network from Scratch</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2024-03-28T00:00:00-04:00" itemprop="datePublished">Mar 28, 2024
+      </time>• <span itemprop="author" itemscope itemtype="http://schema.org/Person"><span class="p-author h-card" itemprop="name">Grant Lawley</span></span></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <!-- # Implementing a Simple Neural Network from Scratch -->
+<p>Artificial intelligence pervades our daily lives, from ChatGPT to mobile phone handwriting recognition. Even without delving into the mathematical intricacies, frameworks like PyTorch and TensorFlow simplify neural network implementation. Yet, understanding the mechanics behind these networks enhances our grasp of such frameworks. In this post, we’ll construct a basic feed-forward neural network to classify handwritten digits from the MNIST dataset, a repository of images spanning numbers 0 to 9. Note: familiarity with calculus and matrix multiplication is assumed. Let’s dive in.</p>
+
+<h3 id="the-structure-of-a-feed-forward-neural-network">The Structure of a Feed-Forward Neural Network</h3>
+
+<p>A typical neural network consists of two main components: nodes and weights. Nodes are often depicted as a stack of circles within a layer, each circle storing values in the network. Weights are illustrated as lines connecting nodes from one layer to the next, playing a crucial role in propagating data through the network. They determine the influence each node’s output has on the following layer. To visualize this concept, consider a simple graphical representation of a neural network.</p>
+
+<p><img src="/assets/images/Untitled.png" alt="Untitled" /></p>
+
+<p>For the mathematical derivations of this article, we will work with the above network to get a sense of how neural networks function. To do that, we require some notation.</p>
+
+<ul>
+  <li>$w^l_{i, j}$ is the weight from node $i$ in layer $l$ to node $j$ in layer $l + 1$.</li>
+  <li>$\sigma^l$ is the <em>activation function</em> applied to $z^l_i$ before propagating the value to the next layer.</li>
+  <li>$a^l_i$ is the activated value of node $i$ in layer $l$, i.e. $a^l_i = \sigma^l(z_i^l)$.</li>
+  <li>$z^l_i$ is the <em>pre-activated</em> value of the node in layer $l$, which stores the linear combination of the weights and output from the previous node, i.e. \(z^2_1 = w^1_{1, 1}a^1_1 + w^1_{2,1}a^1_2\).</li>
+</ul>
+
+<p>This diagram already seems involved, and some might notice that including an activation function only makes everything more computationally complicated, but the reason for including it will become clearer with an example of <em>forward propagation</em>.</p>
+
+<p>Forward propagation is the process of feeding the neural network an input, passing this input through every layer, and obtaining an output. To illustrate this, let’s assume we have an input vector $\vec{x}=[x_1, x_2]$ that we want to feed into the network. A typical forward propagation cycle would be as follows.</p>
+
+<ol>
+  <li>Set $z^1_1 = x_1$  and $z^1_2 = x_2$</li>
+  <li>Compute $a^1_1 = \sigma^1(z^1_1)$ and $a^1_2 = \sigma^1(z^1_2)$</li>
+  <li>Compute \(z^2_1 = w^1_{1, 1}a^1_1 + w^1_{2, 1}a^1_2\) and \(z^2_{2} = w^1_{1, 2}a^1_1 + w^1_{2,2}a^1_2\)</li>
+  <li>Compute $a^2_1 = \sigma^2(z^2_1)$ and $a^2_2 = \sigma^2(z^2_2)$</li>
+</ol>
+
+<p>Repeat steps 2 and 3 for the next layers until we reach the output layer. This process can be generalized to fit neural networks of arbitrary size.</p>
+
+<p>We can make this a bit simpler by using vector and matrix notation as follows. Let $\vec{z}^l$ be the pre-activated values of the nodes in layer $l$ and $\mathbf{W}^l$ be the matrix of weights defined by</p>
+
+\[\mathbf{W}^l = \begin{bmatrix} w^l_{1, 1} &amp; w^l_{2, 1} \\ w^l_{1, 2} &amp; w^l_{2,2} \end{bmatrix}\]
+
+<p>Then we can write the following</p>
+
+\[\vec{z}^2 = \begin{bmatrix} z^2 \\ z^2_1\end{bmatrix} = \begin{bmatrix} w^1_{1, 1}a^1_1 + w^1_{2,1}a^1_2\\ w^1_{1, 2}a^1_1 + w^1_{2,2}a^1_2\end{bmatrix}= \mathbf{W}^1\sigma^1(\vec{z}^1)\]
+
+<p>where we apply the activation function $\sigma^1$ to each component of $\vec{z}^1$. In general, we have</p>
+
+\[\vec{z}^l = \mathbf{W}^{l-1}\sigma^{l - 1}(\vec{z}^{l - 1})\]
+
+<p>The role of activation functions in a neural network becomes apparent when considering the consequences of their absence. If we were to eliminate the activation functions temporarily, the expression for the output layer could be written as</p>
+
+\[\vec{z}^L = \mathbf{W}^{L-1}\mathbf{W}^{L-2}\mathbf{W}^{L-3}\dots\mathbf{W}^{L-k}\vec{x}\]
+
+<p>In this scenario, we observe a series of linear transformations applied to our input vector. Unfortunately, successive linear transformations only result in <em>linear transformations</em>, which can be limiting when the goal is to model nonlinear relationships. Including an activation function is essential to introducing nonlinearity, allowing the neural network to make more sophisticated predictions.</p>
+
+<p>While forward propagation enables the computation of outputs given inputs in the network, it does not enhance the network’s performance. When initializing neural networks, the weights are typically set to small random values. Consequently, the output from propagating inputs through the network is random. To imbue the network with meaningful functionality, we need to train the network through <em>backpropagation</em>.</p>
+
+<h3 id="deriving-the-backpropagation-equations">Deriving the Backpropagation Equations</h3>
+
+<p>Backpropagation is the process of iteratively updating the values of the weights to improve the performance of the neural network. To perform backpropagation we need two things:  a loss function and an optimization algorithm. The loss function informs us about how “well” the network is doing. For example, in classic regression problems, a popular loss function is the mean squared error loss given by</p>
+
+\[L = \frac{1}{n}\sum_i(y_i - \hat{y}_i)^2\]
+
+<p>where $\hat{y_i}$ is the predicted value for the $i^{th}$ observation and $y_i$ is the true value of the $i^{th}$ observation. There are many different kinds of loss functions, each suited to a specific type of problem. For now, we assume a general loss function, $L$, yet to be determined.</p>
+
+<p>The optimization algorithm is the other key part of backpropagation. The goal is to update each weight by moving it a little bit in the direction that will reduce the total loss of the network. This can be mathematically formulated as</p>
+
+\[w^l_{i,j} \leftarrow w^l_{i,j} - \alpha \frac{\partial L}{\partial w^l_{i,j}}\]
+
+<p>The term $\frac{\partial L}{\partial w^l_{i,j}}$ quantifies how $L$ changes with respect to the weight $w^l_{i,j}$. The parameter $\alpha$ is a positive real number determining the magnitude of the weight update. If$\frac{\partial L}{\partial w^l_{i,j}}$ is a large positive value, a reduction in the network’s total loss can be achieved by decreasing the weight by a fraction of this change. Conversely, if it’s a large negative value, increasing the weight can lead to loss reduction. In the scenario where $\frac{\partial L}{\partial w^l_{i,j}}$ equals zero, the weight remains unchanged. This situation signifies that the loss function, with respect to the specified weight, has reached a local minimum—a desirable outcome in the optimization process.</p>
+
+<p>It would be convenient if we could, instead of updating one weight at a time, update every weight in a layer in one go. Ideally, we seek a matrix of derivatives $\mathbf{\partial W}^l$ given by</p>
+
+\[\mathbf{\partial W}^l = \begin{bmatrix}
+\frac{\partial L}{\partial w^l_{1, 1}} &amp; \frac{\partial L}{\partial w^l_{2, 1}} &amp; \dots &amp; \frac{\partial L}{\partial w^l_{i, 1}} \\
+\frac{\partial L}{\partial w^l_{1, 2}} &amp; \frac{\partial L}{\partial w^l_{2, 2}} &amp; \dots &amp; \frac{\partial L}{\partial w^l_{i, 2}} \\
+\vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
+\frac{\partial L}{\partial w^l_{1, n}} &amp; \frac{\partial L}{\partial w^l_{2, n}} &amp; \dots &amp; \frac{\partial L}{\partial w^l_{i, n}}
+\end{bmatrix}\]
+
+<p>such that we can update the weight matrix $\mathbf{W}^l$ via</p>
+
+\[\mathbf{W}^l \leftarrow \mathbf{W}^l - \alpha \mathbf{\partial W}^l\]
+
+<p>For our example network, updating the weights in the last layer would amount to the operation</p>
+
+\[\begin{bmatrix}w^3_{1, 1} &amp; w^3_{2, 1} \\w^3_{1, 2} &amp; w^3_{2, 2}\end{bmatrix} \leftarrow \begin{bmatrix}w^3_{1, 1} &amp; w^3_{2, 1} \\w^3_{1, 2} &amp; w^3_{2, 2}\end{bmatrix} - \alpha \begin{bmatrix} \frac{\partial L}{\partial w^3_{1, 1}} &amp; \frac{\partial L}{\partial w^3_{2, 1}} \\	\frac{\partial L}{\partial w^3_{1, 2}} &amp; \frac{\partial L}{\partial w^3_{2, 2}} \end{bmatrix}\]
+
+<p>Let’s now determine how to calculate these partial derivatives for our example network. To do this, we need to make extensive use of the chain rule.  For example, to calculate the partial derivative of $L$ with respect to $w^3_{1,1}$, we have</p>
+
+\[\frac{\partial L}{\partial w^3_{1,1}} = \frac{\partial L}{\partial a^4_1}\frac{\partial a^4_1}{\partial z^4_1}\frac{\partial z^4_1}{\partial w^3_{1,1}} + \frac{\partial L}{\partial a^4_2}\frac{\partial a^4_2}{\partial z^4_2}\frac{\partial z^4_2}{\partial w^3_{1,1}} = \frac{\partial L}{\partial a^4_1}\frac{\partial a^4_1}{\partial z^4_1}\frac{\partial z^4_1}{\partial w^3_{1,1}}\]
+
+<p>where the last equality follows because $\partial z^4<em>2/\partial w^3</em>{1,1} =0$ since $w^3_{1,1}$ does not connect to the second node in the output layer. This result was obtained by starting at the output node and tracing a path back to our weight, taking partial derivatives using the chain rule along the way. So for our output layer we have the following matrix of partial derivatives</p>
+
+\[\mathbf{\partial W}^3 = \begin{bmatrix}
+\frac{\partial L}{\partial a^4_1}\frac{\partial a^4_1}{\partial z^4_1}\frac{\partial z^4_1}{\partial w^3_{1,1}} &amp;
+\frac{\partial L}{\partial a^4_1}\frac{\partial a^4_1}{\partial z^4_1}\frac{\partial z^4_1}{\partial w^3_{2,1}}\\
+\frac{\partial L}{\partial a^4_2}\frac{\partial a^4_2}{\partial z^4_2}\frac{\partial z^4_2}{\partial w^3_{1,2}} &amp;
+\frac{\partial L}{\partial a^4_2}\frac{\partial a^4_2}{\partial z^4_2}\frac{\partial z^4_2}{\partial w^3_{2,2}}
+\end{bmatrix}\]
+
+<p>We can further simplify this by using the fact that</p>
+
+\[\begin{align*}
+\frac{\partial z^4_1}{\partial w^3_{1,1}} &amp;= \frac{\partial z^4_2}{\partial w^3_{1,2}} &amp;&amp;= a^3_1\\
+\frac{\partial z^4_1}{\partial w^3_{2,1}} &amp;= \frac{\partial z^4_2}{\partial w^3_{2,2}} &amp;&amp;= a^3_2\\
+\end{align*}\]
+
+<p>and using $a’^4_i$ to represent $\partial a^4_i / \partial z^4_i$ to rewrite the above as</p>
+
+\[\mathbf{\partial W}^3 = \begin{bmatrix}
+\frac{\partial L}{\partial a^4_1}a'^4_1a^3_1 &amp;
+\frac{\partial L}{\partial a^4_1}a'^4_1a^3_2\\
+\frac{\partial L}{\partial a^4_2}a'^4_2a^3_1 &amp;
+\frac{\partial L}{\partial a^4_2}a'^4_2a^3_2
+\end{bmatrix}
+=\left(
+\begin{bmatrix}
+\frac{\partial L}{\partial a^4_1}\\
+\frac{\partial L}{\partial a^4_2}
+\end{bmatrix}\odot\begin{bmatrix} a'^4_1 \\ a'^4_2\end{bmatrix}\right)\begin{bmatrix}a^3_1 &amp; a^3_2 \end{bmatrix}\]
+
+<p>where $\odot$ represents element-wise multiplication. And just like that we have the matrix of partial derivatives for the final layer of weights.</p>
+
+<p>Things start to get a little more complicated once we go further back in the network. Let’s compute the matrix following the paths in the network to each weight in the second to last layer.</p>
+
+\[\small{\mathbf{\partial W}^2 = \begin{bmatrix}
+\frac{\partial L}{\partial a^4_1} \frac{\partial a^4_1}{\partial z^4_1} \frac{\partial z^4_1}{\partial a^3_1} \frac{\partial a^3_1}{\partial z^3_1} \frac{\partial z^3_1}{\partial w^2_{1,1}} + \frac{\partial L}{\partial a^4_2} \frac{\partial a^4_2}{\partial z^4_2} \frac{\partial z^4_2}{\partial a^3_1} \frac{\partial a^3_1}{\partial z^3_1} \frac{\partial z^3_1}{\partial w^2_{1,1}} 
+
+&amp;
+
+\frac{\partial L}{\partial a^4_1} \frac{\partial a^4_1}{\partial z^4_1} \frac{\partial z^4_1}{\partial a^3_1} \frac{\partial a^3_1}{\partial z^3_1} \frac{\partial z^3_1}{\partial w^2_{2,1}} + \frac{\partial L}{\partial a^4_2} \frac{\partial a^4_2}{\partial z^4_2} \frac{\partial z^4_2}{\partial a^3_1} \frac{\partial a^3_1}{\partial z^3_1} \frac{\partial z^3_1}{\partial w^2_{2,1}}
+
+\\
+
+\frac{\partial L}{\partial a^4_1} \frac{\partial a^4_1}{\partial z^4_1} \frac{\partial z^4_1}{\partial a^3_2} \frac{\partial a^3_2}{\partial z^3_2} \frac{\partial z^3_2}{\partial w^2_{1,2}} + \frac{\partial L}{\partial a^4_2} \frac{\partial a^4_2}{\partial z^4_2} \frac{\partial z^4_2}{\partial a^3_2} \frac{\partial a^3_2}{\partial z^3_2} \frac{\partial z^3_2}{\partial w^2_{1,2}} 
+
+&amp;
+
+\frac{\partial L}{\partial a^4_1} \frac{\partial a^4_1}{\partial z^4_1} \frac{\partial z^4_1}{\partial a^3_2} \frac{\partial a^3_2}{\partial z^3_2} \frac{\partial z^3_2}{\partial w^2_{2,2}} + \frac{\partial L}{\partial a^4_2} \frac{\partial a^4_2}{\partial z^4_2} \frac{\partial z^4_2}{\partial a^3_2} \frac{\partial a^3_2}{\partial z^3_2} \frac{\partial z^3_2}{\partial w^2_{2,2}} 
+
+\end{bmatrix}}\]
+
+\[=\small{\begin{bmatrix}
+\frac{\partial L}{\partial a^4_1} a'^4_1 w^3_{1,1} a'^3_1 a^2_1 + \frac{\partial L}{\partial a^4_2} a'^4_2 w^3_{1,2} a'^3_1 a^2_1
+
+&amp;
+
+\frac{\partial L}{\partial a^4_1} a'^4_1 w^3_{1,1} a'^3_1 a^2_2 + \frac{\partial L}{\partial a^4_2} a'^4_2 w^3_{1,2} a'^3_1 a^2_2
+
+\\
+
+\frac{\partial L}{\partial a^4_1} a'^4_1 w^3_{2,1} a'^3_2 a^2_1 + \frac{\partial L}{\partial a^4_2} a'^4_2 w^3_{2,2} a'^3_2 a^2_1
+
+&amp;
+
+\frac{\partial L}{\partial a^4_1} a'^4_1 w^3_{2,1} a'^3_2 a^2_2 + \frac{\partial L}{\partial a^4_2} a'^4_2 w^3_{2,2} a'^3_2 a^2_2
+
+\end{bmatrix}}\]
+
+<p>Notice that this time there are two terms in each element of the matrix. This is because each output node is now a function of every weight in layer 2.  With a little bit of work, we see that this matrix is equal to the following.</p>
+
+\[\mathbf{\partial W}^2 = \left(\begin{bmatrix} w^3_{1,1} &amp; w^3_{1, 2} \\ w^3_{2, 1} &amp; w^3_{2,2} \end{bmatrix} \begin{bmatrix}\frac{\partial L}{\partial a^4_1} \\ \frac{\partial L}{\partial a^4_2} \end{bmatrix} \odot \begin{bmatrix} a'^4_1 \\ a'^4_2 \end{bmatrix} \odot \begin{bmatrix} a'^3_1 \\ a'^3_2 \end{bmatrix} \right) \begin{bmatrix} a^2_1 &amp; a^2_2 \end{bmatrix}\]
+
+<p>Deriving $\mathbf{\partial W}^1$ will take even more work. We can simplify this process by realizing we have already done most of the work. Indeed, starting from the terms below</p>
+
+\[\frac{\partial L}{\partial z^3_1} = \frac{\partial L}{\partial a^4_1} \frac{\partial a^4_1}{\partial z^4_1} \frac{\partial z^4_1}{\partial a^3_1} \frac{\partial a^3_1}{\partial z^3_1} + \frac{\partial L}{\partial a^4_2} \frac{\partial a^4_2}{\partial z^4_2} \frac{\partial z^4_2}{\partial a^3_1} \frac{\partial a^3_1}{\partial z^3_1}\]
+
+\[\frac{\partial L}{\partial z^3_2} = \frac{\partial L}{\partial a^4_1} \frac{\partial a^4_1}{\partial z^4_1} \frac{\partial z^4_1}{\partial a^3_2} \frac{\partial a^3_2}{\partial z^3_2} + \frac{\partial L}{\partial a^4_2} \frac{\partial a^4_2}{\partial z^4_2} \frac{\partial z^4_2}{\partial a^3_2} \frac{\partial a^3_2}{\partial z^3_2}\]
+
+<p>we can derive $\mathbf{\partial W}^1$ by extending the partial derivatives that we have already calculated</p>
+
+\[\mathbf{\partial W}^1=\begin{bmatrix}
+\frac{\partial L}{\partial z^3_1} \frac{\partial z^3_1}{\partial a^2_1} \frac{\partial a^2_1}{\partial z^2_1} \frac{\partial z^2_1}{\partial w^1_{1,1}}
++
+\frac{\partial L}{\partial z^3_2} \frac{\partial z^3_2}{\partial a^2_1} \frac{\partial a^2_1}{\partial z^2_1} \frac{\partial z^2_1}{\partial w^1_{1,1}}
+
+&amp;
+
+\frac{\partial L}{\partial z^3_1} \frac{\partial z^3_1}{\partial a^2_1} \frac{\partial a^2_1}{\partial z^2_1} \frac{\partial z^2_1}{\partial w^1_{2,1}}
++
+\frac{\partial L}{\partial z^3_2} \frac{\partial z^3_2}{\partial a^2_1} \frac{\partial a^2_1}{\partial z^2_1} \frac{\partial z^2_1}{\partial w^1_{2,1}}
+
+\\
+
+\frac{\partial L}{\partial z^3_1} \frac{\partial z^3_1}{\partial a^2_2} \frac{\partial a^2_2}{\partial z^2_2} \frac{\partial z^2_2}{\partial w^1_{1,2}}
++
+\frac{\partial L}{\partial z^3_2} \frac{\partial z^3_2}{\partial a^2_2} \frac{\partial a^2_2}{\partial z^2_2} \frac{\partial z^2_2}{\partial w^1_{1,2}}
+
+&amp;
+
+\frac{\partial L}{\partial z^3_1} \frac{\partial z^3_1}{\partial a^2_2} \frac{\partial a^2_2}{\partial z^2_2} \frac{\partial z^2_2}{\partial w^1_{2,2}}
++
+\frac{\partial L}{\partial z^3_2} \frac{\partial z^3_2}{\partial a^2_2} \frac{\partial a^2_2}{\partial z^2_2} \frac{\partial z^2_2}{\partial w^1_{2,2}}
+
+\end{bmatrix}\]
+
+\[=\begin{bmatrix}
+\frac{\partial L}{\partial z^3_1} w^2_{1,1} a'^2_1 a^1_1
++
+\frac{\partial L}{\partial z^3_2} w^2_{1,2} a'^2_1 a^1_1
+
+&amp;
+
+\frac{\partial L}{\partial z^3_1} w^2_{1,1} a'^2_1 a^1_2
++
+\frac{\partial L}{\partial z^3_2} w^2_{1,2} a'^2_1 a^1_2
+
+\\
+
+\frac{\partial L}{\partial z^3_1} w^2_{2,1} a'^2_2 a^1_1
++
+\frac{\partial L}{\partial z^3_2} w^2_{2,2} a'^2_2 a^1_1
+
+&amp;
+
+\frac{\partial L}{\partial z^3_1} w^2_{2,1}  a'^2_2  a^1_2 +
+\frac{\partial L}{\partial z^3_2} w^2_{2,2}  a'^2_2  a^1_2
+\end{bmatrix}\]
+
+<p>And we can rewrite this as</p>
+
+\[\mathbf{\partial W}^1 = \left(\begin{bmatrix} w^2_{1,1} &amp; w^2_{1, 2} \\ w^3_{2, 1} &amp; w^2_{2,2} \end{bmatrix} \begin{bmatrix}\frac{\partial L}{\partial z^3_1} \\ \frac{\partial L}{\partial z^3_2}\end{bmatrix} \odot \begin{bmatrix} a'^2_1 \\ a'^2_2 \end{bmatrix} \right) \begin{bmatrix} a^1_1 &amp; a^1_2 \end{bmatrix}\]
+
+\[= \small{\left(\left(\begin{bmatrix} w^2_{1,1} &amp; w^2_{1, 2} \\ w^2_{2, 1} &amp; w^2_{2,2} \end{bmatrix} \left(\begin{bmatrix} w^3_{1,1} &amp; w^3_{1, 2} \\ w^3_{2, 1} &amp; w^3_{2,2} \end{bmatrix} \begin{bmatrix}\frac{\partial L}{\partial a^4_1} \\ \frac{\partial L}{\partial a^4_2} \end{bmatrix} \odot \begin{bmatrix} a'^4_1 \\ a'^4_2 \end{bmatrix}\right) \odot \begin{bmatrix} a'^3_1 \\ a'^3_2 \end{bmatrix}\right) \odot \begin{bmatrix} a'^2_1 \\ a'^2_2 \end{bmatrix}\right) \begin{bmatrix} a^1_1 &amp; a^1_2 \end{bmatrix}}\]
+
+<p>Now we can see a pattern since we already computed most of the terms in parenthesis. Let’s generalize the steps as follows.</p>
+
+<p>Step 1: Let $L$ denote the last layer in the neural network. Compute</p>
+
+\[\delta^L = \begin{bmatrix} 
+
+\frac{\partial L}{\partial a^L_1} \\
+\frac{\partial L}{\partial a^L_2} \\
+\vdots \\
+\frac{\partial L}{\partial a^L_{i-1}} \\
+\frac{\partial L}{\partial a^L_i}   
+
+\end{bmatrix}
+\odot
+\begin{bmatrix} 
+
+\frac{\partial a^L_1}{\partial z^L_1} \\
+\frac{\partial a^L_2}{\partial z^L_2} \\
+\vdots \\
+\frac{\partial a^L_{i-1}}{\partial z^L_{i-1}} \\
+\frac{\partial a^L_{i}}{\partial z^L_i}   
+
+\end{bmatrix}\]
+
+<p>Step 2: For $l = L-1, L-2,\dots, 1$ compute</p>
+
+\[\mathbf{W}^{l} \leftarrow \mathbf{W}^{l} - \alpha \cdot \delta^{l + 1}{\vec{a}^{l}}^T\]
+
+\[\delta^l = {\mathbf{W}^{l}}^T\delta^{l+1} \odot \vec{a}'^{l}\]
+
+<p>And there we have it, the mathematical details of the algorithm that make neural networks so powerful. It’s worth going back through the derivation of these equations for our example network to understand how the generalized equations work.</p>
+
+<h3 id="implementing-a-neural-network-with-numpy">Implementing a Neural Network with NumPy</h3>
+
+<p>We will be implementing a simple feed-forward neural network to classify the MNIST dataset, which is a collection of 28x28 pixels representing handwritten digits and their corresponding labels.</p>
+
+<p>To implement this network, we must first define a loss function. For problems where there are more than 2 categories possible (in this case we have 10 possible digits), a popular loss function is the cross-entropy loss function given by</p>
+
+\[L = -\sum_{k} y_k\cdot \ln{\hat{y}_k}\]
+
+<p>where $y_k$ is a 1 if the class is of type $k$ and 0 otherwise and $\hat{y}_k$ represents the predicted probability that an observation is of class $k$.   For the purposes of backpropagation, we will also need the gradient of $L$ with respect to $\hat{y}_k$. We can incorporate this into a Python function.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">cross_entropy</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">grad</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="s">"""
+    Calculates the cross-entropy loss between predicted (x) and true labels (y).
+
+    Args:
+        x: Predicted probabilities.
+        y: True labels (one-hot encoded).
+        grad: Boolean flag indicating whether to return the gradient (True) or loss (False).
+
+    Returns:
+        Cross-entropy loss if grad is False, otherwise the gradient of the loss.
+    """</span>
+
+    <span class="c1"># Clip target labels to avoid issues with log(0)
+</span>    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">clip</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="mf">1.</span> <span class="o">-</span> <span class="mf">1e-10</span><span class="p">)</span>
+
+    <span class="c1"># Calculate cross-entropy loss
+</span>    <span class="k">if</span> <span class="n">grad</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span>  <span class="c1"># Gradient of cross-entropy loss
+</span>
+    <span class="k">return</span> <span class="o">-</span><span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="n">y</span> <span class="o">*</span> <span class="n">np</span><span class="p">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Our network will make use of two activation functions, ReLU and Softmax. The ReLU activation is given by</p>
+
+\[ReLU(x) = \max(0,x)\]
+
+<p>The ReLU function keeps only positive values, so it is a piecewise linear function that allows us to introduce some nonlinearity while keeping calculations cheap. The implementation of the ReLU function is as follows.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">relu</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">grad</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="s">"""
+    Implements the ReLU (Rectified Linear Unit) activation function.
+
+    Args:
+        x: Input value(s).
+        grad: Boolean flag indicating whether to return the gradient (True) or activation (False).
+
+    Returns:
+        ReLU activation of x if grad is False, otherwise the ReLU gradient.
+    """</span>
+
+    <span class="c1"># Apply ReLU function: max(0, x)
+</span>    <span class="k">return</span> <span class="n">np</span><span class="p">.</span><span class="n">maximum</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">grad</span> <span class="k">else</span> <span class="n">np</span><span class="p">.</span><span class="n">where</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+</code></pre></div></div>
+
+<p>The Softmax function is the activation function that we will use in the <em>last</em> layer of the network. Its role is to assign a probability to each of the ten outputs, representing the probability of a certain digit aligning with the expected value. The Softmax function is given by</p>
+
+\[\text{Softmax}(x_i) = \frac{e^{x_i}}{\sum_{j=1}^{N} e^{x_j}}\]
+
+<p>We can implement the Softmax function and its gradient with the following Python code.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">softmax</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">grad</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+    <span class="s">"""
+    Implements the softmax function for classification problems.
+
+    Args:
+        x: Input value(s).
+        grad: Boolean flag indicating whether to return the gradient (True) or activation (False).
+
+    Returns:
+        Softmax activation of x if grad is False, otherwise the softmax gradient.
+    """</span>
+
+    <span class="c1"># Calculate the exponentials of the input values for numerical stability
+</span>    <span class="n">exp</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">exp</span><span class="p">(</span><span class="n">np</span><span class="p">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">np</span><span class="p">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="o">-</span><span class="mi">5</span><span class="p">))</span>
+
+    <span class="c1"># Prevent division by zero by adding a small constant to the denominator
+</span>    <span class="n">denominator</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="nb">sum</span><span class="p">(</span><span class="n">exp</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mf">1e-3</span>
+
+    <span class="c1"># Calculate the softmax probabilities
+</span>    <span class="n">s</span> <span class="o">=</span> <span class="n">exp</span> <span class="o">/</span> <span class="n">denominator</span>
+
+    <span class="c1"># Return activation or gradient based on the grad flag
+</span>    <span class="k">return</span> <span class="n">s</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">grad</span> <span class="k">else</span> <span class="n">np</span><span class="p">.</span><span class="n">multiply</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="mf">1.</span> <span class="o">-</span> <span class="n">s</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>You may notice that we are bounding $x$ between -5 and 5. This is to avoid raising $e$ to too large of a power, which could result in numerical instability.</p>
+
+<p>Now that we have our loss and activation functions out of the way, let’s implement the rest of the network. To align with conventional libraries like PyTorch and Tensorflow, let’s create a <code class="language-plaintext highlighter-rouge">Layer</code> class that will hold the weight matrices, the weight gradients, and necessary intermediate values.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">Layer</span><span class="p">:</span>
+    <span class="s">"""
+    Represents a basic neural network layer.
+
+    Attributes:
+        input_dim: Dimensionality of the input data.
+        output_dim: Dimensionality of the output data.
+        activation: Activation function to be applied to the layer's output.
+        w: Weight matrix of the layer, initialized with random values.
+        grad_w: Gradient of the weight matrix, used for training.
+        x: Input data to the layer (stored for backpropagation).
+        z: Weighted sum of the input before activation (stored for backpropagation).
+        a: Activated output of the layer.
+    """</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="n">relu</span><span class="p">):</span>
+        <span class="s">"""
+        Initializes a new Layer object.
+
+        Args:
+            input_dim: Dimensionality of the input data.
+            output_dim: Dimensionality of the output data.
+            activation: Activation function to be applied to the layer's output (default: relu)
+        """</span>
+
+        <span class="bp">self</span><span class="p">.</span><span class="n">input_dim</span> <span class="o">=</span> <span class="n">input_dim</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">output_dim</span> <span class="o">=</span> <span class="n">output_dim</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">activation</span>
+
+        <span class="c1"># Initialize weight matrix with Xavier initialization for better convergence
+</span>        <span class="bp">self</span><span class="p">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">random</span><span class="p">.</span><span class="n">normal</span><span class="p">(</span><span class="n">scale</span><span class="o">=</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">np</span><span class="p">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">input_dim</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">output_dim</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">)).</span><span class="n">astype</span><span class="p">(</span><span class="n">DEFAULT_DTYPE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">grad_w</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">w</span><span class="p">).</span><span class="n">astype</span><span class="p">(</span><span class="n">DEFAULT_DTYPE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">z</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">a</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="s">"""
+        Performs the forward pass through the layer.
+
+        Args:
+            x: Input data to the layer.
+
+        Returns:
+            Activated output of the layer.
+        """</span>
+
+        <span class="bp">self</span><span class="p">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>  <span class="c1"># Store the input for backpropagation
+</span>        <span class="bp">self</span><span class="p">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">dot</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">w</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>  <span class="c1"># Calculate the weighted sum
+</span>        <span class="bp">self</span><span class="p">.</span><span class="n">a</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">activation</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">z</span><span class="p">)</span>  <span class="c1"># Apply activation function
+</span>        <span class="k">return</span> <span class="bp">self</span><span class="p">.</span><span class="n">a</span>
+</code></pre></div></div>
+
+<p>Now we create a <code class="language-plaintext highlighter-rouge">NeuralNetwork</code> class that will do forward and backward propagation as well as calculating the loss.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">class</span> <span class="nc">NeuralNetwork</span><span class="p">:</span>
+    <span class="s">"""
+    Represents a basic neural network architecture.
+
+    Attributes:
+        learning_rate: Learning rate for gradient updates during training.
+        batch_size: Size of the data batch used for training.
+        layers: List of `Layer` objects representing the network's layers.
+        predictions: Network's predicted outputs during the last forward pass (internal use).
+        actuals: True labels during the last forward pass (internal use).
+        current_loss: Loss value calculated during the last forward pass (internal use).
+    """</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">loss_function</span><span class="o">=</span><span class="n">cross_entropy</span><span class="p">):</span>
+        <span class="s">"""
+        Initializes a new NeuralNetwork object.
+
+        Args:
+            learning_rate: Learning rate for gradient updates during training (default: 0.01).
+            batch_size: Size of the data batch used for training (default: 32).
+            loss_function: The function used to calculate loss (default: cross_entropy).
+        """</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">loss_function</span> <span class="o">=</span> <span class="n">loss_function</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">layers</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># List to hold network layers
+</span>
+        <span class="c1"># Internal variables to store network outputs for loss calculation
+</span>        <span class="bp">self</span><span class="p">.</span><span class="n">predictions</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">actuals</span> <span class="o">=</span> <span class="bp">None</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">current_loss</span> <span class="o">=</span> <span class="bp">None</span>
+
+    <span class="k">def</span> <span class="nf">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="s">"""
+        Performs a forward pass through the network.
+
+        Args:
+            x: Input data to the network.
+
+        Returns:
+            Activated output of the last layer in the network.
+        """</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># Pass input through each layer
+</span>        <span class="k">return</span> <span class="n">x</span>
+
+    <span class="k">def</span> <span class="nf">__add__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">layer</span><span class="p">):</span>
+        <span class="s">"""
+        Efficiently adds a Layer object to the network.
+
+        Args:
+            layer: The Layer object to be added to the network.
+
+        Raises:
+            AssertionError: If the input and output dimensions of consecutive layers are incompatible.
+        """</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">Layer</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">:</span>
+                <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">.</span><span class="n">append</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Ensure compatible dimensions between layers
+</span>                <span class="k">assert</span> <span class="n">layer</span><span class="p">.</span><span class="n">w</span><span class="p">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">].</span><span class="n">w</span><span class="p">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s">"Incompatible layer dimensions!"</span>
+                <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">.</span><span class="n">append</span><span class="p">(</span><span class="n">layer</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span> <span class="nf">loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">actuals</span><span class="p">):</span>
+        <span class="s">"""
+        Calculates and stores the loss between predicted and actual outputs.
+
+        Args:
+            predictions: Network's predicted outputs.
+            actuals: True labels for the data.
+
+        Returns:
+            The calculated loss value.
+        """</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">actuals</span> <span class="o">=</span> <span class="n">actuals</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">current_loss</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">mean</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">loss_function</span><span class="p">(</span><span class="n">predictions</span><span class="p">,</span> <span class="n">actuals</span><span class="p">))</span>  <span class="c1"># Average cross-entropy loss
+</span>        <span class="k">return</span> <span class="bp">self</span><span class="p">.</span><span class="n">current_loss</span>
+
+    <span class="k">def</span> <span class="nf">backwards</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="s">"""
+        Performs backpropagation to update weights of the network based on the calculated loss.
+        """</span>
+        <span class="c1"># Calculate the gradient of the loss with respect to the network's predictions
+</span>        <span class="n">loss_grad</span> <span class="o">=</span> <span class="n">cross_entropy</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">predictions</span><span class="p">,</span> <span class="bp">self</span><span class="p">.</span><span class="n">actuals</span><span class="p">,</span> <span class="n">grad</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="c1"># Calculate the gradient of the activation function of the last layer
+</span>        <span class="n">activation_grad</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">].</span><span class="n">activation</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">].</span><span class="n">z</span><span class="p">,</span> <span class="n">grad</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+
+        <span class="c1"># Compute the delta, which is the product of the loss gradient and activation gradient
+</span>        <span class="n">delta</span> <span class="o">=</span> <span class="n">loss_grad</span> <span class="o">*</span> <span class="n">activation_grad</span>
+        <span class="c1"># Reshape delta for compatibility with matrix multiplication
+</span>        <span class="n">delta</span> <span class="o">=</span> <span class="n">delta</span><span class="p">.</span><span class="n">T</span><span class="p">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Compute the gradient of the weights of the last layer
+</span>        <span class="n">prev_activation</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">].</span><span class="n">x</span><span class="p">.</span><span class="n">T</span><span class="p">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">].</span><span class="n">dw</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">mean</span><span class="p">(</span><span class="n">delta</span> <span class="o">*</span> <span class="n">prev_activation</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Backpropagate through the layers, starting from the second-to-last layer
+</span>        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="c1"># Transpose weights for matrix multiplication
+</span>            <span class="n">weights_transpose</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">].</span><span class="n">w</span><span class="p">.</span><span class="n">transpose</span><span class="p">()</span>
+
+            <span class="c1"># Compute the gradient of the activation function of the current layer
+</span>            <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">].</span><span class="n">z</span>
+            <span class="n">activation_grad</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">].</span><span class="n">activation</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">grad</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+            <span class="n">activation_grad</span> <span class="o">=</span> <span class="n">activation_grad</span><span class="p">.</span><span class="n">T</span><span class="p">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="c1"># Update delta using the chain rule
+</span>            <span class="n">delta</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">weights_transpose</span><span class="p">,</span> <span class="n">delta</span><span class="p">)</span> <span class="o">*</span> <span class="n">activation_grad</span>
+
+            <span class="c1"># Compute the gradient of the weights of the current layer
+</span>            <span class="n">prev_activation</span> <span class="o">=</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">].</span><span class="n">x</span><span class="p">.</span><span class="n">T</span><span class="p">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">batch_size</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">[</span><span class="o">-</span><span class="n">i</span><span class="p">].</span><span class="n">dw</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">mean</span><span class="p">(</span><span class="n">np</span><span class="p">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">delta</span><span class="p">,</span> <span class="n">prev_activation</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Update weights of all layers using gradient descent
+</span>        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="p">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">layer</span><span class="p">.</span><span class="n">w</span> <span class="o">=</span> <span class="n">layer</span><span class="p">.</span><span class="n">w</span> <span class="o">-</span> <span class="bp">self</span><span class="p">.</span><span class="n">learning_rate</span> <span class="o">*</span> <span class="n">layer</span><span class="p">.</span><span class="n">dw</span>
+
+</code></pre></div></div>
+
+<p>The <code class="language-plaintext highlighter-rouge">backwards</code> method implements backpropagation according to the equations we derived above. The main difference between the mathematics and the implementation is that I am taking advantage of mini-batch gradient descent, which samples a batch of data, calculates the gradient matrix for each sample in the batch, and then averages those gradient matrices for the weight update. These operations are done in the background by NumPy using the rules of <a href="https://numpy.org/doc/stable/user/basics.broadcasting.html">broadcasting</a>.</p>
+
+<p>Let’s go ahead and use our model to classify some digits. We will read a file called mnist_train.csv, where the structure is such that each row corresponds to a digit with the first column being the label, and the next 784 columns being the flattened 28x28 image.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">file</span> <span class="o">=</span> <span class="sa">r</span><span class="s">"MNIST_CSV\mnist_train.csv"</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="p">.</span><span class="n">read_csv</span><span class="p">(</span><span class="nb">file</span><span class="p">,</span> <span class="n">header</span><span class="o">=</span><span class="bp">None</span><span class="p">).</span><span class="n">values</span><span class="p">.</span><span class="n">astype</span><span class="p">(</span><span class="n">DEFAULT_DTYPE</span><span class="p">)</span>
+<span class="n">samples</span> <span class="o">=</span> <span class="p">[(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">/</span> <span class="mi">255</span><span class="p">,</span> <span class="n">np</span><span class="p">.</span><span class="n">eye</span><span class="p">(</span><span class="mi">10</span><span class="p">)[</span><span class="nb">int</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">])].</span><span class="n">astype</span><span class="p">(</span><span class="n">DEFAULT_DTYPE</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">))]</span>
+</code></pre></div></div>
+
+<p>We store each row’s data in a tuple and divide every pixel value by 255 to normalize the data between 0 and 1. This helps avoid overflow errors in the network. We have also converted the label into a one-hot encoded vector, i.e. a vector of length 10 with the index of the label set to 1 and zero otherwise. Next, we create a model and test it on our training data.</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">np</span><span class="p">.</span><span class="n">random</span><span class="p">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">10_000</span><span class="p">)</span>
+<span class="n">random</span><span class="p">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">10_000</span><span class="p">)</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">NeuralNetwork</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="p">.</span><span class="mi">95</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">64</span><span class="p">)</span>
+<span class="n">l1</span> <span class="o">=</span> <span class="n">Layer</span><span class="p">(</span><span class="mi">784</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="n">relu</span><span class="p">)</span>
+<span class="n">l2</span> <span class="o">=</span> <span class="n">Layer</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="n">relu</span><span class="p">)</span>
+<span class="n">l3</span> <span class="o">=</span> <span class="n">Layer</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">softmax</span><span class="p">)</span>
+
+<span class="n">model</span> <span class="o">+=</span> <span class="n">l1</span>
+<span class="n">model</span> <span class="o">+=</span> <span class="n">l2</span>
+<span class="n">model</span> <span class="o">+=</span> <span class="n">l3</span>
+
+<span class="n">epochs</span> <span class="o">=</span> <span class="mi">10_000</span>
+<span class="n">losses</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">trange</span><span class="p">(</span><span class="n">epochs</span><span class="p">,</span> <span class="n">ncols</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+    <span class="n">batch</span> <span class="o">=</span> <span class="n">random</span><span class="p">.</span><span class="n">sample</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="n">model</span><span class="p">.</span><span class="n">batch_size</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">b</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]).</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="p">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="n">Y</span> <span class="o">=</span> <span class="n">np</span><span class="p">.</span><span class="n">column_stack</span><span class="p">([</span><span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]).</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="p">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="n">pred</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">model</span><span class="p">.</span><span class="n">loss</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">Y</span><span class="p">)</span>
+    <span class="n">losses</span><span class="p">.</span><span class="n">append</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+    <span class="n">model</span><span class="p">.</span><span class="n">backwards</span><span class="p">()</span>
+
+<span class="n">plt</span><span class="p">.</span><span class="n">plot</span><span class="p">(</span><span class="n">losses</span><span class="p">)</span>
+<span class="n">plt</span><span class="p">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">"Epoch"</span><span class="p">)</span>
+<span class="n">plt</span><span class="p">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">"Average Batch Error"</span><span class="p">)</span>
+<span class="n">plt</span><span class="p">.</span><span class="n">title</span><span class="p">(</span><span class="s">"Training Error through Time"</span><span class="p">)</span>
+<span class="n">plt</span><span class="p">.</span><span class="n">savefig</span><span class="p">(</span><span class="s">'error.png'</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>When you run this code, you should get the following graph or something very similar. We see that the error drops off rapidly in training, which is a good indication that our network is learning well. However, it should be noted that convergence depends on several factors including the learning rate.</p>
+
+<p><img src="/assets/images/error.png" alt="error.png" /></p>
+
+<p>The full code for the neural network implementation can be found in this repository.</p>
+
+<h3 id="conclusion">Conclusion</h3>
+
+<p>In this article, we derived the backpropagation equations for feed-forward neural networks and wrote a naive implementation to classify digits in the MNIST dataset. Nevertheless, some improvements can be made to the implementation</p>
+
+<ul>
+  <li>Introduce bias terms: Introducing bias terms allows neural networks to better model complex relationships between inputs and outputs by shifting activation functions, enhancing the network’s ability to learn.</li>
+  <li>Use learning rate scheduling: Utilizing learning rate scheduling optimizes training by dynamically adjusting the learning rate over epochs, allowing for faster convergence and better generalization.</li>
+  <li>Consider different optimizers: Considering different optimizers such as Adam, RMSprop, or SGD with momentum can improve training efficiency and performance by adapting gradient descent algorithms to better suit the data and model architecture.</li>
+</ul>
+
+<p>It is also worth mentioning that many machine-learning frameworks do not explicitly perform backpropagation through matrix multiplication. Instead, they use an algorithm known as autograd, that keeps a graph representation of the network and traverses that to compute the derivatives. More information about autograd is available <a href="https://pytorch.org/docs/stable/notes/autograd.html">here</a>.</p>
+
+  </div><a class="u-url" href="/2024/03/28/ImplementingSimpleNeuralNetworkfromScratch.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">The Lazy Mathematician</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">Grant Lawley</li><li><a class="u-email" href="mailto:grantdoesmath@gmail.com">grantdoesmath@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/GrantLawley"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">GrantLawley</span></a></li><li><a href="https://www.linkedin.com/in/william-g-lawley"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#linkedin"></use></svg> <span class="username">william-g-lawley</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

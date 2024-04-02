@@ -214,7 +214,7 @@ for index in range(num_rows * num_columns):
 
     if (row * num_columns + col) < len(features):
         x = df[features[index]]
-        y = df["SalePrice"]
+        y = df["SalePrice"]![Alt text](download.png)
 
         axes[row, col].scatter(x, y, facecolors="none", edgecolors="b")
         axes[row, col].set(xlabel=features[index])
