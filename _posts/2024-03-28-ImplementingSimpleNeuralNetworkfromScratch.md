@@ -435,8 +435,8 @@ class Layer:
         self.activation = activation
 
         # Initialize weight matrix with Xavier initialization for better convergence
-        self.w = np.random.normal(scale=1.0 / np.sqrt(input_dim), size=(output_dim, input_dim)).astype(DEFAULT_DTYPE)
-        self.grad_w = np.zeros_like(self.w).astype(DEFAULT_DTYPE)
+        self.w = np.random.normal(scale=1.0 / np.sqrt(input_dim), size=(output_dim, input_dim)).astype(np.float32)
+        self.grad_w = np.zeros_like(self.w).astype(np.float32)
         self.x = None
         self.z = None
         self.a = None
@@ -589,8 +589,8 @@ Let’s go ahead and use our model to classify some digits. We will read a file 
 
 ```python
 file = r"MNIST_CSV\mnist_train.csv"
-data = pd.read_csv(file, header=None).values.astype(DEFAULT_DTYPE)
-samples = [(data[i, 1:] / 255, np.eye(10)[int(data[i, 0])].astype(DEFAULT_DTYPE)) for i in range(len(data))]
+data = pd.read_csv(file, header=None).values.astype(np.float32)
+samples = [(data[i, 1:] / 255, np.eye(10)[int(data[i, 0])].astype(np.float32)) for i in range(len(data))]
 ```
 
 We store each row’s data in a tuple and divide every pixel value by 255 to normalize the data between 0 and 1. This helps avoid overflow errors in the network. We have also converted the label into a one-hot encoded vector, i.e. a vector of length 10 with the index of the label set to 1 and zero otherwise. Next, we create a model and test it on our training data. 
